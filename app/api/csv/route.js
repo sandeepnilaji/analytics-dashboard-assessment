@@ -6,8 +6,6 @@ import Papa from "papaparse";
 export async function GET() {
   try {
     const dataDirectory = path.join(process.cwd(), "public", "data-to-visualize");
-    
-    // path.join(process.cwd(), "data-to-visualize");
     const filePath = path.join(
       dataDirectory,
       "Electric_Vehicle_Population_Data.csv"
@@ -30,15 +28,19 @@ export async function GET() {
       skipEmptyLines: true,
     });
 
-    if (results.errors.length > 0) {
-      console.error("CSV parsing errors:", results.errors);
-      return NextResponse.json(
-        { error: "CSV parsing failed" },
-        { status: 500 }
-      );
-    }
+    const limitedResults = results.data.slice(0, 100);
 
-    return NextResponse.json(results.data);
+    return NextResponse.json(limitedResults);
+
+    // if (limitedResults.errors.length > 0) {
+    //   console.error("CSV parsing errors:", results.errors);
+    //   return NextResponse.json(
+    //     { error: "CSV parsing failed" },
+    //     { status: 500 }
+    //   );
+    // }
+
+    // return NextResponse.json(results.data);
   } catch (error) {
     console.error("Server error:", error);
     return NextResponse.json(
