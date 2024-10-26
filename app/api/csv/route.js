@@ -5,7 +5,9 @@ import Papa from "papaparse";
 
 export async function GET() {
   try {
-    const dataDirectory = path.join(process.cwd(), "data-to-visualize");
+    const dataDirectory = path.join(process.cwd(), "public", "data-to-visualize");
+    
+    // path.join(process.cwd(), "data-to-visualize");
     const filePath = path.join(
       dataDirectory,
       "Electric_Vehicle_Population_Data.csv"
