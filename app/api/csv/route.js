@@ -7,8 +7,12 @@ import { promisify } from "util";
 
 const gzipAsync = promisify(gzip);
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const pageSize = parseInt(searchParams.get('pageSize') || '1000', 10);
+
     const dataDirectory = path.join(process.cwd(), "public", "data-to-visualize");
     const filePath = path.join(
       dataDirectory,
@@ -22,8 +26,18 @@ export async function GET() {
         header: true,
         skipEmptyLines: true,
         complete: async (results) => {
-          const allData = results.data;
-          const compressedData = await gzipAsync(JSON.stringify(allData));
+          const startIndex = (page - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          const paginatedData = results.data.slice(startIndex, endIndex);
+
+          const response = {
+            data: paginatedData,
+            totalCount: results.data.length,
+            page,
+            pageSize,
+            totalPages: Math.ceil(results.data.length / pageSize)
+          };
+          const compressedData = await gzipAsync(JSON.stringify(response));
           resolve(new NextResponse(compressedData, {
             status: 200,
             headers: {

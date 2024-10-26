@@ -16,7 +16,8 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch("/api/csv");
+        setIsLoading(true);
+        const response = await fetch(`/api/csv?page=${1}&pageSize=1000`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -34,14 +35,14 @@ export default function DashboardPage() {
                 return pump();
               });
             }
-          },
+          }
         });
         const result = await new Response(stream).arrayBuffer();
         const decompressed = await new Response(result).json();
-        setData(decompressed);
+        setData(prevData => [...prevData, ...decompressed.data]);
+        setIsLoading(false);
       } catch (e) {
         setError(e.message);
-      } finally {
         setIsLoading(false);
       }
     }

@@ -62,5 +62,5 @@ export function processChartData(data) {
 }
 
 export function getUniqueValues(data, key) {
-  return [...new Set(data.map((item) => item[key]))];
+  return [...new Set(data?.map((item) => item[key]))];
 }
