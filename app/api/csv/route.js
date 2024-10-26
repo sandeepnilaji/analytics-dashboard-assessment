@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import path from "path";
 import { promises as fs } from "fs";
 import Papa from "papaparse";
+import { gzip } from "zlib";
+import { promisify } from "util";
+
+const gzipAsync = promisify(gzip);
 
 export async function GET() {
   try {
@@ -11,36 +15,33 @@ export async function GET() {
       "Electric_Vehicle_Population_Data.csv"
     );
 
-    try {
-      await fs.access(filePath);
-    } catch (error) {
-      console.error("File does not exist:", filePath);
-      return NextResponse.json(
-        { error: "CSV file not found" },
-        { status: 404 }
-      );
-    }
-
     const fileContent = await fs.readFile(filePath, "utf-8");
 
-    const results = Papa.parse(fileContent, {
-      header: true,
-      skipEmptyLines: true,
+    return new Promise((resolve) => {
+      Papa.parse(fileContent, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          const allData = results.data;
+          const compressedData = await gzipAsync(JSON.stringify(allData));
+          resolve(new NextResponse(compressedData, {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Encoding': 'gzip'
+            }
+          }));
+        },
+        error: (error) => {
+          console.error("CSV parsing error:", error);
+          resolve(NextResponse.json(
+            { error: "CSV parsing failed" },
+            { status: 500 }
+          ));
+        }
+      });
     });
 
-    const limitedResults = results.data.slice(0, 100);
-
-    return NextResponse.json(limitedResults);
-
-    // if (limitedResults.errors.length > 0) {
-    //   console.error("CSV parsing errors:", results.errors);
-    //   return NextResponse.json(
-    //     { error: "CSV parsing failed" },
-    //     { status: 500 }
-    //   );
-    // }
-
-    // return NextResponse.json(results.data);
   } catch (error) {
     console.error("Server error:", error);
     return NextResponse.json(

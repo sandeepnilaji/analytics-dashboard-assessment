@@ -14,18 +14,37 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const fetchData = async () => {
+    async function fetchData() {
       try {
         const response = await fetch("/api/csv");
-        if (!response.ok) throw new Error("Failed to fetch data");
-        const jsonData = await response.json();
-        setData(jsonData);
-      } catch (error) {
-        setError(error.message);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const reader = response.body.getReader();
+        const stream = new ReadableStream({
+          start(controller) {
+            return pump();
+            function pump() {
+              return reader.read().then(({ done, value }) => {
+                if (done) {
+                  controller.close();
+                  return;
+                }
+                controller.enqueue(value);
+                return pump();
+              });
+            }
+          },
+        });
+        const result = await new Response(stream).arrayBuffer();
+        const decompressed = await new Response(result).json();
+        setData(decompressed);
+      } catch (e) {
+        setError(e.message);
       } finally {
         setIsLoading(false);
       }
-    };
+    }
     fetchData();
   }, []);
 
@@ -53,8 +72,8 @@ export default function DashboardPage() {
       ? item["Model Year"] === selectedYear
       : true;
     const matchesSearch =
-      item["Make"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item["Model"].toLowerCase().includes(searchTerm.toLowerCase());
+      item["Make"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item["Model"]?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesMake && matchesYear && matchesSearch;
   });
 
@@ -68,48 +87,40 @@ export default function DashboardPage() {
   } = processChartData(filteredData);
 
   const exportToCSV = () => {
-    const csvRows = [];
     const headers = Object.keys(filteredData[0]);
-    csvRows.push(headers.join(","));
-
-    for (const row of filteredData) {
-      csvRows.push(
+    const csvContent = [
+      headers.join(","),
+      ...filteredData.map((row) =>
         headers
-          .map((fieldName) =>
-            JSON.stringify(row[fieldName], (key, value) =>
-              value === null ? "" : value
-            )
-          )
+          .map((fieldName) => JSON.stringify(row[fieldName] ?? ""))
           .join(",")
-      );
-    }
+      ),
+    ].join("\n");
 
-    const csvString = csvRows.join("\n");
-    const blob = new Blob([csvString], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.setAttribute("href", url);
-    a.setAttribute("download", "ev_data.csv");
-    a.click();
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", "ev_data.csv");
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const makeCountData = {
     labels: Object.keys(makeCount),
     datasets: [
-      {
-        data: Object.values(makeCount),
-        backgroundColor: colorPalette,
-      },
+      { data: Object.values(makeCount), backgroundColor: colorPalette },
     ],
   };
 
   const evTypeData = {
     labels: Object.keys(evTypeCount),
     datasets: [
-      {
-        data: Object.values(evTypeCount),
-        backgroundColor: colorPalette,
-      },
+      { data: Object.values(evTypeCount), backgroundColor: colorPalette },
     ],
   };
 
@@ -150,10 +161,7 @@ export default function DashboardPage() {
   const cafvEligibilityData = {
     labels: Object.keys(cafvEligibility),
     datasets: [
-      {
-        data: Object.values(cafvEligibility),
-        backgroundColor: colorPalette,
-      },
+      { data: Object.values(cafvEligibility), backgroundColor: colorPalette },
     ],
   };
 
@@ -175,7 +183,7 @@ export default function DashboardPage() {
             <select
               value={selectedMake}
               onChange={(e) => setSelectedMake(e.target.value)}
-              className="w-full sm:w-auto border rounded-lg text-black p-2 outline-none  transition-all"
+              className="w-full sm:w-auto border rounded-lg text-black p-2 outline-none transition-all"
             >
               <option value="">All Makes</option>
               {uniqueMakes.map((make) => (
@@ -188,7 +196,7 @@ export default function DashboardPage() {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full sm:w-auto border rounded-lg text-black p-2 outline-none  transition-all"
+              className="w-full sm:w-auto border rounded-lg text-black p-2 outline-none transition-all"
             >
               <option value="">All Years</option>
               {uniqueYears.map((year) => (
