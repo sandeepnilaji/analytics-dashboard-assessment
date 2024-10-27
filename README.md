@@ -22,7 +22,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Deployed Link
 
-You can view the deployed application at [Deployed Link](https://analytics-dashboard-assessment-mzdeyva3q.vercel.app/dashboard)
+You can view the deployed application at [Deployed Link](https://analytics-dashboard-mapup.vercel.app/dashboard)
 
 ## Libraries Used
 
