@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { processChartData, getUniqueValues } from "../utils/dataProcessing";
 import ChartCard from "./components/ChartCard";
 import { colorPalette } from "../utils/colors";
-
+import Papa from "papaparse";
 export default function DashboardPage() {
   const [data, setData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,30 +17,23 @@ export default function DashboardPage() {
     async function fetchData() {
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/csv?page=${1}&pageSize=1000`);
+        const response = await fetch('https://raw.githubusercontent.com/sandeepnilaji/csv/refs/heads/main/Electric_Vehicle_Population_Data.csv');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const reader = response.body.getReader();
-        const stream = new ReadableStream({
-          start(controller) {
-            return pump();
-            function pump() {
-              return reader.read().then(({ done, value }) => {
-                if (done) {
-                  controller.close();
-                  return;
-                }
-                controller.enqueue(value);
-                return pump();
-              });
-            }
+        const csvText = await response.text();
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            setData(results.data);
+            setIsLoading(false);
+          },
+          error: (error) => {
+            setError(`CSV parsing error: ${error.message}`);
+            setIsLoading(false);
           }
         });
-        const result = await new Response(stream).arrayBuffer();
-        const decompressed = await new Response(result).json();
-        setData(prevData => [...prevData, ...decompressed.data]);
-        setIsLoading(false);
       } catch (e) {
         setError(e.message);
         setIsLoading(false);
